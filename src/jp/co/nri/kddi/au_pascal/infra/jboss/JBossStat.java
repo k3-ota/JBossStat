@@ -160,12 +160,22 @@ public class JBossStat {
                 return 1;
             }
             
+            if (config.get("server") == null) {
+                config.put("server", "127.0.0.1");
+            }
+            
             if (debug) {
                 System.out.println("name=" + this.config.get("name"));
                 System.out.println("pass=" + this.config.get("pass"));
             }
+            
             SecurityAssociation.setPrincipal(new SimplePrincipal(this.config.get("name")));
             SecurityAssociation.setCredential(this.config.get("pass"));
+            
+            if (debug) {
+                System.out.println(Context.PROVIDER_URL);
+                System.out.println(config.get("server"));
+            }
             
             
             Hashtable props = new Hashtable(System.getProperties());
