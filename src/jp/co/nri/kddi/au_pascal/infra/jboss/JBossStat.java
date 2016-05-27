@@ -8,6 +8,8 @@ package jp.co.nri.kddi.au_pascal.infra.jboss;
 import java.util.*;
 import java.io.*;
 import java.text.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.management.*;
 import javax.naming.*;
 
@@ -37,6 +39,9 @@ public class JBossStat {
     
     private String[] loginName = null;
     private String[] pass = null;
+    
+    //String configPath = null;
+    String logPath = null;
     
     private boolean loginFlag;
     private boolean commandFlag;
@@ -68,7 +73,7 @@ public class JBossStat {
         
          try {
              errorCode = getConfInfo();
-             File file = new File(".\\jbossstat.log"); //ログ出力先
+             File file = new File(logPath); //ログ出力先
              FileWriter fw = new FileWriter(file,true);
              errorCode = runJBossCli();
              writeLog(DSArr, fw); 
@@ -198,12 +203,60 @@ public class JBossStat {
         return 0;
     }
     
+    int getLogPath(BufferedReader br) {
+        String str = null;
+        try {
+            str = br.readLine();
+            if (str.equals("**logPath**".trim())) {
+                
+                //configPathの取得
+                /*
+                str = br.readLine();
+                String[] tmp = null;
+                tmp = str.split("=");
+                if (tmp[0].trim().equals("configPath")) {
+                    this.configPath = tmp[1].trim();
+                }
+                else {
+                    System.out.println("書式が不正です。");
+                    return 1;
+                }
+                */
+                
+                //ログファイル出力先の取得
+                str = br.readLine();
+                String[] tmp = str.split("=");
+                if (tmp[0].trim().equals("logPath")) {
+                    this.logPath = tmp[1].trim();
+                    if (debug) {
+                        System.out.println(tmp[0] + "=" + tmp[1]);
+                    }
+                }
+                else {
+                    System.out.println("書式が不正です。");
+                    return 1;
+                }
+                
+            }
+            else {
+                System.out.println("書式が不正です。");
+                return 1;
+            }
+        } catch (IOException ex) {
+            Logger.getLogger(JBossStat.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return 0;
+    }
+    
     int getConfInfo() {
+        int errorCode = 0;
         try {
             //File file = new File("C:\\Users\\k-ota\\Documents\\NetBeansProjects\\JBoss_Stat_Library\\src\\jp\\co\\nri\\kddi\\au_pascal\\infra\\jboss\\jbossstat.conf");
             File file = new File(".\\resources\\jbossstat.conf");
             FileReader filereader = new FileReader(file);
             BufferedReader br = new BufferedReader(filereader);
+            
+            errorCode = getLogPath(br);
             
             //サーバログイン
             loginServer(br);
