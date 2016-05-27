@@ -42,6 +42,7 @@ public class JBossStat {
     
     //String configPath = null;
     String logPath = null;
+    String jbossCliPath = null;
     
     private boolean loginFlag;
     private boolean commandFlag;
@@ -203,7 +204,7 @@ public class JBossStat {
         return 0;
     }
     
-    int getLogPath(BufferedReader br) {
+    int getPath(BufferedReader br) {
         String str = null;
         try {
             str = br.readLine();
@@ -237,6 +238,20 @@ public class JBossStat {
                     return 1;
                 }
                 
+                //jboss-cliのパス
+                str = br.readLine();
+                tmp = str.split("=");
+                if (tmp[0].trim().equals("jboss-cli")) {
+                    this.jbossCliPath = tmp[1].trim();
+                    if (debug) {
+                        System.out.println(tmp[0] + "=" + tmp[1]);
+                    }
+                }
+                else {
+                    System.out.println("書式が不正です。");
+                    return 1;
+                }
+                
             }
             else {
                 System.out.println("書式が不正です。");
@@ -248,20 +263,8 @@ public class JBossStat {
         return 0;
     }
     
-    int getConfInfo() {
-        int errorCode = 0;
-        try {
-            //File file = new File("C:\\Users\\k-ota\\Documents\\NetBeansProjects\\JBoss_Stat_Library\\src\\jp\\co\\nri\\kddi\\au_pascal\\infra\\jboss\\jbossstat.conf");
-            File file = new File(".\\resources\\jbossstat.conf");
-            FileReader filereader = new FileReader(file);
-            BufferedReader br = new BufferedReader(filereader);
-            
-            errorCode = getLogPath(br);
-            
-            //サーバログイン
-            loginServer(br);
-            
-            String str = br.readLine();
+    int getCommand(BufferedReader br) throws IOException {
+        String str = br.readLine();
             if (str.equals("**Command**")) {
                 commandFlag = true;
             }
@@ -273,70 +276,96 @@ public class JBossStat {
                 System.out.println("confファイルの様式がよろしくありません。");
                 return 1;
             }
-            
-            
+            return 0;
+    }
+    
+    
+    int getData(BufferedReader br) throws IOException {
+        
+        String str = br.readLine();
+
+        if (str.equals("**Data**")) {
+            dataFlag = true;
+        }
+        else {
+            System.out.println("confファイルの様式がよろしくありません。");
+            return 1;
+        }
+
+        if (dataFlag) {
+            String[] tmp = str.split("=", 0);
+            String[] DSs = tmp[1].split(",", 0);
+
+            if (debug) {
+                System.out.println("データソース群のsplitでいけた");
+            }
+
+
+            //データソース群の取得
+            for (String s : DSs) {
+                Stat obj = new Stat();
+                obj.setDSName(s);
+                DSArr.add(obj);
+                if (debug) {
+                    System.out.println(s);
+                }
+            }
+
+            if (debug) {
+                System.out.println("データソース群の取得まではOK");
+            }
+
             str = br.readLine();
-            if (str.equals("**Data**")) {
-                dataFlag = true;
-            }
-            else {
-                System.out.println("confファイルの様式がよろしくありません。");
-                return 1;
-            }
-
-            if (dataFlag) {
-                String[] tmp = str.split("=", 0);
-                String[] DSs = tmp[1].split(",", 0);
-
+            //jbossstat.confの有効な属性のみを取得
+            while (str != null) {
+                String[] word = str.split("=",0);
                 if (debug) {
-                    System.out.println("データソース群のsplitでいけた");
+                    System.out.println(str);
                 }
 
-
-                //データソース群の取得
-                for (String s : DSs) {
-                    Stat obj = new Stat();
-                    obj.setDSName(s);
-                    DSArr.add(obj);
-                    if (debug) {
-                        System.out.println(s);
-                    }
-                }
-
-                if (debug) {
-                    System.out.println("データソース群の取得まではOK");
-                }
-
+                //記録する属性情報を取得
+                AttArr.add(word[0]);
+                AttTF.add(word[1]);
                 str = br.readLine();
-                //jbossstat.confの有効な属性のみを取得
-                while (str != null) {
-                    String[] word = str.split("=",0);
-                    if (debug) {
-                        System.out.println(str);
-                    }
-
-                    //記録する属性情報を取得
-                    AttArr.add(word[0]);
-                    AttTF.add(word[1]);
-                    str = br.readLine();
-                }
-
-                //入力のクロージング
-                if (br != null) {
-                    br.close();
-                }
-                if (filereader != null) {
-                    filereader.close();
-                }
             }
         }
-        catch (IOException e){
-            e.printStackTrace();
+        return 0;
+    }
+    
+    int getConfInfo() throws IOException, NamingException {
+        int errorCode = 0;
+        
+      
+        //File file = new File("C:\\Users\\k-ota\\Documents\\NetBeansProjects\\JBoss_Stat_Library\\src\\jp\\co\\nri\\kddi\\au_pascal\\infra\\jboss\\jbossstat.conf");
+        File file = new File(".\\resources\\jbossstat.conf");
+        FileReader filereader = new FileReader(file);
+        BufferedReader br = new BufferedReader(filereader);
+
+        errorCode = getPath(br);
+        if (errorCode == 1) {
+            System.out.println("パスが取得できませんでした。");
             return 1;
         }
-        catch (Exception e) {
-            e.printStackTrace();
+
+        //サーバログイン
+        errorCode = loginServer(br);
+        if (errorCode == 1) {
+            System.out.println("サーバにログインできませんでした。");
             return 1;
+        }
+
+        errorCode = getCommand(br);
+        if (errorCode == 1) {
+            System.out.println("不正なコマンドがありました");
+            return 1;
+        }
+            
+        //入力のクロージング
+        if (br != null) {
+            br.close();
+        }
+        if (filereader != null) {
+            filereader.close();
         }
         
         return 0;
@@ -496,7 +525,7 @@ public class JBossStat {
                 if (debug) {
                     System.out.println(DS.getDSName());
                 }
-                String runCommand = "C:\\Users\\k-ota\\Desktop\\jboss-eap-6.2\\bin\\jboss-cli.bat -c --commands=\"cd /subsystem=datasources/data-source=" + DS.getDSName() + "/statistics=pool/,ls\"";
+                String runCommand = this.jbossCliPath + " -c --commands=\"cd /subsystem=datasources/data-source=" + DS.getDSName() + "/statistics=pool/,ls\"";
                 Process proc = Runtime.getRuntime().exec(runCommand);
                 System.out.println("実行中");
                 InputStream is = proc.getInputStream();
