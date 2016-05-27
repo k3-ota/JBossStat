@@ -210,20 +210,6 @@ public class JBossStat {
             str = br.readLine();
             if (str.equals("**logPath**".trim())) {
                 
-                //configPathの取得
-                /*
-                str = br.readLine();
-                String[] tmp = null;
-                tmp = str.split("=");
-                if (tmp[0].trim().equals("configPath")) {
-                    this.configPath = tmp[1].trim();
-                }
-                else {
-                    System.out.println("書式が不正です。");
-                    return 1;
-                }
-                */
-                
                 //ログファイル出力先の取得
                 str = br.readLine();
                 String[] tmp = str.split("=");
