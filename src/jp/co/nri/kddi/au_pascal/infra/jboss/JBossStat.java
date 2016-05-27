@@ -25,7 +25,7 @@ import org.jboss.util.propertyeditor.PropertyEditors;
  * @author k-ota
  */
 public class JBossStat {
-    static private boolean debug = true;
+    final static private boolean debug = true;
     //データソースの種類を格納
     private List<Stat> DSArr;
     private List<String> AttArr;
