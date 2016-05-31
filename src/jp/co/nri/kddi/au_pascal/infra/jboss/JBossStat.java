@@ -42,6 +42,7 @@ public class JBossStat {
     
     //String configPath = null;
     String logPath = null;
+    String errorLogPath = null;
     String jbossCliPath = null;
     
     private boolean loginFlag;
@@ -73,12 +74,32 @@ public class JBossStat {
          int errorCode = 0;
         
          try {
-             errorCode = getConfInfo();
-             File file = new File(logPath); //ログ出力先
+             File file = new File(this.logPath); //ログ出力先
              FileWriter fw = new FileWriter(file,true);
-             errorCode = runJBossCli();
-             writeLog(DSArr, fw); 
+             File errorFile = new File(this.errorLogPath);
+             FileWriter errorfw = new FileWriter(errorFile,true);
+             
+             errorCode = getConfInfo(errorfw);
+             
+             if (errorCode == 1) {
+                System.out.println("confファイルの読み込みに失敗しました");
+                errorfw.append("confファイルの読み込みに失敗しました。\n"
+                        + "confファイルの形式を見直してください。");
+                errorfw.flush();
+             }
+             else {
+                errorCode = runJBossCli(errorfw);
+                if (errorCode == 1) {
+                    Date date = new Date();
+                    errorfw.append(date.toString() + ": jboss-cli実行時に問題が発生しました。");
+                    errorfw.flush();
+                }
+                writeLog(DSArr, fw, errorfw);
+             }
              if (fw != null) {
+                 fw.close();
+             }
+             if (errorfw != null) {
                  fw.close();
              }
          }
@@ -89,7 +110,7 @@ public class JBossStat {
          catch (Exception e) {
              e.printStackTrace();
          }
-        
+         
         
         return errorCode;
     }
@@ -224,6 +245,19 @@ public class JBossStat {
                     return 1;
                 }
                 
+                str = br.readLine();
+                tmp = str.split("=");
+                if (tmp[0].trim().equals("errorLogPath")) {
+                    this.errorLogPath = tmp[1].trim();
+                    if (debug) {
+                        System.out.println(tmp[0] + "=" + tmp[1]);
+                    }
+                }
+                else {
+                    System.out.println("書式が不正です。");
+                    return 1;
+                }
+                
                 //jboss-cliのパス
                 str = br.readLine();
                 tmp = str.split("=");
@@ -318,7 +352,7 @@ public class JBossStat {
         return 0;
     }
     
-    int getConfInfo() throws IOException, NamingException {
+    int getConfInfo(FileWriter errorfw) throws IOException, NamingException {
         int errorCode = 0;
         
       
@@ -330,6 +364,9 @@ public class JBossStat {
         errorCode = getPath(br);
         if (errorCode == 1) {
             System.out.println("パスが取得できませんでした。");
+            Date date = new Date();
+            errorfw.append(date.toString() + ": パスが取得できませんでした。");
+            errorfw.flush();
             return 1;
         }
 
@@ -337,12 +374,18 @@ public class JBossStat {
         errorCode = loginServer(br);
         if (errorCode == 1) {
             System.out.println("サーバにログインできませんでした。");
+            Date date = new Date();
+            errorfw.append(date.toString() + ": サーバにログインできませんでした。");
+            errorfw.flush();
             return 1;
         }
 
         errorCode = getCommand(br);
         if (errorCode == 1) {
             System.out.println("不正なコマンドがありました");
+            Date date = new Date();
+            errorfw.append(date.toString() + ": 不正なコマンドがありました");
+            errorfw.flush();
             return 1;
         }
             
@@ -455,7 +498,7 @@ public class JBossStat {
         return -1;
     }
     
-    int writeLog(List<Stat> DSArr, FileWriter fw) {
+    int writeLog(List<Stat> DSArr, FileWriter fw, FileWriter errorfw) throws IOException {
         try {
             //現在時刻の取得
             Date now = new Date();
@@ -494,18 +537,24 @@ public class JBossStat {
             fw.append("\n");
         }
         catch (IOException e) {
+            Date date = new Date();
             System.out.println("正常にログにかきこめませんでした。");
+            errorfw.append(date.toString() + ": 正常にログにかきこめませんでした。");
+            errorfw.flush();
             e.printStackTrace();
             return -1;
         } 
         catch (Exception e) {
             e.printStackTrace();
+            Date date = new Date();
+            errorfw.append(date.toString() + ": 正常にログにかきこめませんでした。");
+            errorfw.flush();
             return -1;
         }
         return 0;
     }
     
-    int runJBossCli() {
+    int runJBossCli(FileWriter errorfw) throws IOException {
         try {
             for (Stat DS : DSArr) {
                 if (debug) {
@@ -531,10 +580,16 @@ public class JBossStat {
         }
         catch (IOException e) {
             e.printStackTrace();
+            Date date = new Date();
+            errorfw.append(date.toString() + ": 正常にJboss-cliが動作しませんでした。");
+            errorfw.flush();
             return 1;
         }
         catch (Exception e) {
             e.printStackTrace();
+            Date date = new Date();
+            errorfw.append(date.toString() + ": 正常にJboss-cliが動作しませんでした。");
+            errorfw.flush();
             return 1;
         }
         return 0;
