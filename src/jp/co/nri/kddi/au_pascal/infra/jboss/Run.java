@@ -20,7 +20,7 @@ public class Run {
         System.out.println("test start!");
         JBossStat obj = new JBossStat();
         
-        int errorCode = obj.perform();
+        int errorCode = obj.perform(args[0]);
         System.out.println("test end!!");
         if (errorCode == 0) {
             System.out.println("正常にログがとれました。");
