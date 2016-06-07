@@ -1,5 +1,6 @@
 /*
- * To change this license header, choose License Headers in Project Properties.
+ * To change this license header,
+ * choose License Headers in Project Properties.
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
@@ -8,17 +9,9 @@ package jp.co.nri.kddi.au_pascal.infra.jboss;
 import java.util.*;
 import java.io.*;
 import java.text.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.management.*;
 import javax.naming.*;
 
-import org.jboss.jmx.adaptor.rmi.RMIAdaptor;
-import org.jboss.varia.scheduler.Schedulable;
-import org.jboss.security.SecurityAssociation;
-import org.jboss.security.SimplePrincipal;
-import org.jboss.security.RunAsIdentity;
-import org.jboss.util.propertyeditor.PropertyEditors;
 
 
 
@@ -32,7 +25,7 @@ public class JBossStat {
     private List<Stat> DSArr;
     private List<String> AttArr;
     private List<String> AttTF;
-    protected List<JBossStatCommand> commands;
+    //protected List<JBossStatCommand> commands;
     
     protected MBeanServerConnection server = null;
     protected Map<String, String> config = null; 
@@ -44,6 +37,8 @@ public class JBossStat {
     String logPath = null;
     String errorLogPath = null;
     String jbossCliPath = null;
+    String commandFilePath = null;
+    String homePath = null;
     
     private boolean loginFlag;
     private boolean commandFlag;
@@ -58,31 +53,23 @@ public class JBossStat {
         commandFlag = dataFlag = loginFlag =  false;
     }  
     
-    protected static class JBossStatCommand {
-      public final String colName;
-      public final String objectName;
-      public final String[] names;
-      public JBossStatCommand(final String line){
-        final String[] parts = line.split(" ");
-        this.colName = parts[0];
-        this.objectName = parts[1];
-        this.names = Arrays.copyOfRange(parts, 2, parts.length);
-      }
-    }
+  
    
-    int perform() {
+    int perform(String confPath) {
          int errorCode = 0;
         
          try {
+             errorCode = getConfInfo(confPath);
+             
              File file = new File(this.logPath); //ログ出力先
              FileWriter fw = new FileWriter(file,true);
              File errorFile = new File(this.errorLogPath);
              FileWriter errorfw = new FileWriter(errorFile,true);
              
-             errorCode = getConfInfo(errorfw);
-             
              if (errorCode == 1) {
-                System.out.println("confファイルの読み込みに失敗しました");
+                if (debug) {
+                    System.out.println("confファイルの読み込みに失敗しました");
+                }
                 errorfw.append("confファイルの読み込みに失敗しました。\n"
                         + "confファイルの形式を見直してください。");
                 errorfw.flush();
@@ -91,10 +78,12 @@ public class JBossStat {
                 errorCode = runJBossCli(errorfw);
                 if (errorCode == 1) {
                     Date date = new Date();
-                    errorfw.append(date.toString() + ": jboss-cli実行時に問題が発生しました。");
+                    errorfw.append(date.toString() + 
+                            ": jboss-cli実行時に問題が発生しました。");
                     errorfw.flush();
                 }
-                writeLog(DSArr, fw, errorfw);
+                writeLog(DSArr, fw, errorfw); 
+
              }
              if (fw != null) {
                  fw.close();
@@ -115,151 +104,137 @@ public class JBossStat {
         return errorCode;
     }
     
-    
-    protected void connectServer() throws NamingException {
+    int getCurrentThreadsBusy(FileWriter fw, FileWriter errorfw) {
+        String num = null;
         if (debug) {
-            System.out.println("name=" + loginName[1] + ", pass=" + pass[1]);
+            System.out.println("⇒ getCurrentThreadsBusy");
         }
-        Hashtable props = new Hashtable(System.getProperties());
-        props.put(Context.PROVIDER_URL, config.get("server"));
-        InitialContext ctx = new InitialContext(props);
-        Object obj = ctx.lookup("jmx/invoker/RMIAdaptor");
-        ctx.close();
-        if (!(obj instanceof RMIAdaptor)){
-           throw new ClassCastException
-              ("Object not of type: RMIAdaptorImpl, but: " +
-              (obj == null ? "not found" : obj.getClass().getName()));
+        try {
+            String runCommand = "java -cp " + this.homePath 
+                    + "/lib/jmxterm-1.0-alpha-4-uber.jar:"
+                    + this.homePath + "/lib/jboss-cli-client.jar" 
+                    + " org.codehaus.classworlds.uberjar.boot.Bootstrapper "
+                    + "-v silent -n "
+                    + "-l \"service:jmx:remoting-jmx://127.0.0.1:9999\" < " 
+                    + this.commandFilePath;
+            Process proc = Runtime.getRuntime().exec(runCommand);
+            if (debug) {
+                System.out.println("実行中 in getCurrentThreadsBusy");
+            }
+            InputStream is = proc.getInputStream();
+            int errorCode = proc.waitFor();
+            if (debug) {
+                System.out.println("errorCode=" + errorCode);
+                if (errorCode == 0) {
+                    System.out.println("正常終了 in getCurrentThreadsBusy");
+                }
+                else {
+                    System.out.println("異常終了 in getCurrentThreadsBusy");
+                }
+            }
+            if (debug) {
+                System.out.println("実行終了 in getCurrentThreadsBusy");
+            }
+            BufferedReader br = new BufferedReader(new InputStreamReader(is));
+            
+            String tmp = br.readLine();
+            System.out.println(tmp);
+            while (tmp != null) {
+                System.out.println("tmp = " + tmp);
+                try {
+                    num = (new Integer(tmp)).toString();
+                    System.out.println("num = " + num);
+                    tmp = br.readLine();
+                }
+                catch (Exception e) {
+                    tmp = br.readLine();
+                }
+            }
         }
-        this.server = (MBeanServerConnection) obj;
-    }
-    
-      
-    protected AttributeList executeGetCommand(final String objName, final String[] names) throws Exception {
-      final ObjectName objectName = new ObjectName(objName);
-      AttributeList attrList = server.getAttributes(objectName, names);
-      if (attrList.size() == 0) {
-         throw new Exception("No matching attributes");
-      } else if (attrList.size() != names.length) {
-         throw new Exception("Not all specified attributes were found");
-      }
-      return attrList;
-    }
-    
-    
-    int loginServer(BufferedReader br) throws IOException, NamingException {
-        String str = br.readLine();
-        String name = null;
-        String pass = null;
-        
-        if (str.equals("**LoginInfo**")) {
-            loginFlag = true;
+        catch (IOException e) {
+            e.printStackTrace();
+            if (debug) {
+                System.out.println("currentThreadsBusyの取得に失敗しました。");
+            }
+            return 1;
         }
-        else {
-            System.out.println("confファイルの様式がよろしくありません。");
+        catch (Exception e) {
+            e.printStackTrace();
+            if (debug) {
+                System.out.println("currentThreadsBusyの取得に失敗しました。");
+            }
             return 1;
         }
         
-        if (config == null) {
-            this.config = new HashMap<String, String>();
+        try {
+            fw.append("ACTIVE_THREAD.currentThreadsBusy=" + num + "\t");
         }
-        
-        if (loginFlag) {
-            str = br.readLine();
-            this.loginName = (str.trim()).split("=");
-            if (this.loginName[0].equals("name")) {
-                name = this.loginName[1];
-                this.config.put(this.loginName[0].trim(), name.trim());
-            }
-            else {
-                System.out.println("confファイルの様式がよろしくありません。");
-                return 1;
-            }
-            
-            str = br.readLine();
-            this.pass = (str.trim()).split("=");
-            if (this.pass[0].equals("pass")) {
-                pass = (str.trim()).split("=")[1];
-                this.config.put(this.pass[0].trim(), pass.trim());
-                
-            }
-            else {
-                System.out.println("confファイルの様式がよろしくありません。");
-                return 1;
-            }
-            
-            if (config.get("server") == null) {
-                config.put("server", "127.0.0.1");
-            }
-            
-            if (debug) {
-                System.out.println("name=" + this.config.get("name"));
-                System.out.println("pass=" + this.config.get("pass"));
-            }
-            
-            SecurityAssociation.setPrincipal(new SimplePrincipal(this.config.get("name")));
-            SecurityAssociation.setCredential(this.config.get("pass"));
-            
-            if (debug) {
-                System.out.println(Context.PROVIDER_URL);
-                System.out.println(config.get("server"));
-            }
-            
-            
-            Hashtable props = new Hashtable(System.getProperties());
-            props.put(Context.PROVIDER_URL, config.get("server"));
-            InitialContext ctx = new InitialContext(props);
-            Object obj = ctx.lookup("jmx/invoker/RMIAdaptor");
-            ctx.close();
-            if (!(obj instanceof RMIAdaptor)){
-               throw new ClassCastException
-                  ("Object not of type: RMIAdaptorImpl, but: " +
-                  (obj == null ? "not found" : obj.getClass().getName()));
-            }
-            this.server = (MBeanServerConnection) obj;
-        }
-        else {
-            System.out.println("サーバにログインできていません。");
+        catch (IOException e) {
             return 1;
         }
-        
+        if (debug) {
+            System.out.println("getCurrentThreadsBusy ⇒");
+        }
         return 0;
     }
     
+    
     int getPath(BufferedReader br) {
         String str = null;
+        if (debug) {
+            System.out.println("func: getPath　⇒  start!");
+        }
         try {
             str = br.readLine();
-            if (str.equals("**logPath**".trim())) {
+            if (str.trim().equals("**Path**")) {
                 
                 //ログファイル出力先の取得
                 str = br.readLine();
                 String[] tmp = str.split("=");
                 if (tmp[0].trim().equals("logPath")) {
                     this.logPath = tmp[1].trim();
-                    if (debug) {
-                        System.out.println(tmp[0] + "=" + tmp[1]);
-                    }
                 }
                 else {
-                    System.out.println("書式が不正です。");
+                    System.out.println("書式が不正です＠logPath");
                     return 1;
+                }
+                if (debug) {
+                    System.out.println("logPath: " + this.logPath);
                 }
                 
                 str = br.readLine();
+                tmp = null;
                 tmp = str.split("=");
                 if (tmp[0].trim().equals("errorLogPath")) {
                     this.errorLogPath = tmp[1].trim();
-                    if (debug) {
-                        System.out.println(tmp[0] + "=" + tmp[1]);
-                    }
                 }
                 else {
-                    System.out.println("書式が不正です。");
+                    System.out.println("書式が不正です＠errorLogPath");
                     return 1;
+                }
+                if (debug) {
+                    System.out.println("errorLogPath: " + this.errorLogPath);
+                }
+                
+                //currentThreadsBusy取得用コマンドファイル
+                str = br.readLine();
+                tmp = null;
+                tmp = str.split("=");
+                if (tmp[0].trim().equals("commandFilePath")) {
+                    this.commandFilePath = tmp[1].trim();
+                }
+                else {
+                    System.out.println("書式が不正です＠commandFilePath");
+                    return 1;
+                }
+                if (debug) {
+                    System.out.println("commandFilePath: " 
+                            + this.commandFilePath);
                 }
                 
                 //jboss-cliのパス
                 str = br.readLine();
+                tmp = null;
                 tmp = str.split("=");
                 if (tmp[0].trim().equals("jboss-cli")) {
                     this.jbossCliPath = tmp[1].trim();
@@ -268,100 +243,136 @@ public class JBossStat {
                     }
                 }
                 else {
-                    System.out.println("書式が不正です。");
+                    System.out.println("書式が不正です＠jboss-cli");
                     return 1;
+                }
+                
+                //アプリケーションホームパス
+                str = br.readLine();
+                tmp = null;
+                tmp = str.split("=");
+                if (tmp[0].trim().equals("homePath")) {
+                    this.commandFilePath = tmp[1].trim();
+                }
+                else {
+                    System.out.println("書式が不正です＠homePath");
+                    return 1;
+                }
+                if (debug) {
+                    System.out.println("homePath: " 
+                            + this.commandFilePath);
                 }
                 
             }
             else {
-                System.out.println("書式が不正です。");
+                System.out.println("書式が不正です＠Path");
                 return 1;
             }
-        } catch (IOException ex) {
-            Logger.getLogger(JBossStat.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        if (debug) {
+            System.out.println("func: getPath　⇒  end!");
         }
         return 0;
     }
     
-    int getCommand(BufferedReader br) throws IOException {
-        String str = br.readLine();
-            if (str.equals("**Command**")) {
-                commandFlag = true;
-            }
-            if (commandFlag) {
-                str = br.readLine();
-                commands.add(new JBossStatCommand(str.trim()));
+    
+    
+    int getData(BufferedReader br) {
+        
+        try {
+            String str = br.readLine();
+
+            if (str.trim().equals("**Data**")) {
+                dataFlag = true;
+                if (debug) {
+                    System.out.println("データチェック領域に突入。");
+                }
             }
             else {
-                System.out.println("confファイルの様式がよろしくありません。");
+                if (debug) {
+                    System.out.println("confファイルの様式がよろしくありません。");
+                }
                 return 1;
             }
-            return 0;
-    }
-    
-    
-    int getData(BufferedReader br) throws IOException {
-        
-        String str = br.readLine();
 
-        if (str.equals("**Data**")) {
-            dataFlag = true;
+            if (dataFlag) {
+                str = br.readLine();
+                if (debug) {
+                    System.out.println("str = " + str);
+                }
+                String[] tmp = str.split("=", 0);
+                if (debug) {
+                    System.out.println("DS = " + tmp[1]);
+                }
+                String[] DSs = tmp[1].split(",", 0);
+
+                if (debug) {
+                    System.out.println("データソース群のsplitでいけた");
+                    System.out.println("DS1=" + tmp[0]);
+                    System.out.println("DS2=" + tmp[1]);
+                }
+
+
+                //データソース群の取得
+                for (String s : DSs) {
+                    Stat obj = new Stat();
+                    obj.setDSName(s);
+                    DSArr.add(obj);
+                    if (debug) {
+                        System.out.println(s);
+                    }
+                }
+
+                if (debug) {
+                    System.out.println("データソース群の取得まではOK");
+                }
+
+                str = br.readLine();
+                //jbossstat.confの有効な属性のみを取得
+                while (str != null) {
+                    String[] word = str.split("=",0);
+                    if (debug) {
+                        System.out.println(str);
+                    }
+
+                    //記録する属性情報を取得
+                    AttArr.add(word[0]);
+                    AttTF.add(word[1]);
+                    str = br.readLine();
+                }
+            }
         }
-        else {
-            System.out.println("confファイルの様式がよろしくありません。");
+        catch (IOException e) {
+            e.printStackTrace();
+            if (debug) {
+                System.out.println("IOでクラッシュ");
+            }
             return 1;
         }
-
-        if (dataFlag) {
-            String[] tmp = str.split("=", 0);
-            String[] DSs = tmp[1].split(",", 0);
-
+        catch (Exception e) {
+            e.printStackTrace();
             if (debug) {
-                System.out.println("データソース群のsplitでいけた");
+                System.out.println("その他のエラーでクラッシュ");
             }
-
-
-            //データソース群の取得
-            for (String s : DSs) {
-                Stat obj = new Stat();
-                obj.setDSName(s);
-                DSArr.add(obj);
-                if (debug) {
-                    System.out.println(s);
-                }
-            }
-
-            if (debug) {
-                System.out.println("データソース群の取得まではOK");
-            }
-
-            str = br.readLine();
-            //jbossstat.confの有効な属性のみを取得
-            while (str != null) {
-                String[] word = str.split("=",0);
-                if (debug) {
-                    System.out.println(str);
-                }
-
-                //記録する属性情報を取得
-                AttArr.add(word[0]);
-                AttTF.add(word[1]);
-                str = br.readLine();
-            }
+            return 1;
         }
         return 0;
     }
     
-    int getConfInfo(FileWriter errorfw) throws IOException, NamingException {
+    int getConfInfo(String confPath) throws IOException, NamingException {
         int errorCode = 0;
         
-      
-        //File file = new File("C:\\Users\\k-ota\\Documents\\NetBeansProjects\\JBoss_Stat_Library\\src\\jp\\co\\nri\\kddi\\au_pascal\\infra\\jboss\\jbossstat.conf");
-        File file = new File(".\\resources\\jbossstat.conf");
+        File file = new File(confPath); //絶対パスに直す
         FileReader filereader = new FileReader(file);
         BufferedReader br = new BufferedReader(filereader);
 
         errorCode = getPath(br);
+        
+        File errorFile = new File(this.errorLogPath);
+        FileWriter errorfw = new FileWriter(errorFile,true);
+        
         if (errorCode == 1) {
             System.out.println("パスが取得できませんでした。");
             Date date = new Date();
@@ -369,24 +380,13 @@ public class JBossStat {
             errorfw.flush();
             return 1;
         }
-
-        //サーバログイン
-        errorCode = loginServer(br);
+        
+        errorCode = getData(br);
         if (errorCode == 1) {
-            System.out.println("サーバにログインできませんでした。");
             Date date = new Date();
-            errorfw.append(date.toString() + ": サーバにログインできませんでした。");
+            errorfw.append(date.toString() 
+                    + ": データ取得時に問題が発生しました。");
             errorfw.flush();
-            return 1;
-        }
-
-        errorCode = getCommand(br);
-        if (errorCode == 1) {
-            System.out.println("不正なコマンドがありました");
-            Date date = new Date();
-            errorfw.append(date.toString() + ": 不正なコマンドがありました");
-            errorfw.flush();
-            return 1;
         }
             
         //入力のクロージング
@@ -396,6 +396,13 @@ public class JBossStat {
         if (filereader != null) {
             filereader.close();
         }
+        if (errorfw != null) {
+            errorfw.close();
+        }
+        
+        if (debug) {
+            System.out.println("finish getConfInfo");
+        }
         
         return 0;
     }
@@ -403,6 +410,11 @@ public class JBossStat {
     Stat setAttribute(Stat DS, ArrayList<String> arrList) {
         for (String line : arrList) {
             String[] att = line.split("=");
+            
+            if (debug) {
+                System.out.println("in setAttribute");
+                System.out.println("セットする値: " + att[0] + "=" + att[1]);
+            }
 
             if (att[0].equals("ActiveCount")) {
                 DS.setActiveCount(Integer.parseInt(att[1]));
@@ -498,58 +510,51 @@ public class JBossStat {
         return -1;
     }
     
-    int writeLog(List<Stat> DSArr, FileWriter fw, FileWriter errorfw) throws IOException {
+    int writeLog(List<Stat> DSArr, FileWriter fw, FileWriter errorfw) 
+            throws IOException {
         try {
             //現在時刻の取得
             Date now = new Date();
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy'-'MM'-'dd' 'HH':'mm':'ss");
+            SimpleDateFormat sdf = 
+                    new SimpleDateFormat("yyyy'-'MM'-'dd' 'HH':'mm':'ss");
             fw.append(sdf.format(now) + "\t");
             
-            //現在リクエスト処理中のスレッド数の取得
-            if (server == null) {
-                connectServer();
-            }
-            for (final JBossStatCommand command : commands) {
-                AttributeList attList = executeGetCommand(command.objectName, command.names);
-                Iterator it = attList.iterator();
-                
-                while (it.hasNext()) {
-                    Attribute att = (Attribute)it.next();
-                    
-                    fw.append(command.colName);
-                    fw.append(".");
-                    fw.append(att.getName());
-                    fw.append("=");
-                    fw.append((String) att.getValue());
-                    fw.append("\t");
-                }
+            int errorCode = getCurrentThreadsBusy(fw,errorfw);
+            if (errorCode == 1) {
+                Date date = new Date();
+                errorfw.append(date.toString() 
+                        + ": currentThreadsBusyを取得できませんでした。");
+                errorfw.flush();
+                return 1;
             }
             
-            fw.append("ACTIVE_THREAD.crrentThreadsBusy=" + DSArr.get(0).getActiveCount() + "\t");
             for (Stat ds : DSArr){
                 for (int i = 0; i < AttArr.size(); i++) {
                     if (AttTF.get(i).equals("true")) {
-                        fw.append(ds.getDSName() + "." + AttArr.get(i) + "=" + getAttribute(ds,AttArr.get(i)) + "\t");
+                        fw.append(ds.getDSName() + "." 
+                                + AttArr.get(i) + "=" 
+                                + getAttribute(ds,AttArr.get(i)) + "\t");
                     }
                 }
-                fw.append("\t");
             }
             fw.append("\n");
         }
         catch (IOException e) {
             Date date = new Date();
             System.out.println("正常にログにかきこめませんでした。");
-            errorfw.append(date.toString() + ": 正常にログにかきこめませんでした。");
+            errorfw.append(date.toString() 
+                    + ": 正常にログにかきこめませんでした。");
             errorfw.flush();
             e.printStackTrace();
-            return -1;
+            return 1;
         } 
         catch (Exception e) {
             e.printStackTrace();
             Date date = new Date();
-            errorfw.append(date.toString() + ": 正常にログにかきこめませんでした。");
+            errorfw.append(date.toString() 
+                    + ": 正常にログにかきこめませんでした。");
             errorfw.flush();
-            return -1;
+            return 1;
         }
         return 0;
     }
@@ -560,19 +565,39 @@ public class JBossStat {
                 if (debug) {
                     System.out.println(DS.getDSName());
                 }
-                String runCommand = this.jbossCliPath + " -c --commands=\"cd /subsystem=datasources/data-source=" + DS.getDSName() + "/statistics=pool/,ls\"";
+                String runCommand = this.jbossCliPath 
+                        + " -c --commands=\"cd /subsystem=datasources/data-source=" + DS.getDSName() + "/statistics=pool/,ls\"";
                 Process proc = Runtime.getRuntime().exec(runCommand);
-                System.out.println("実行中");
+                if (debug) {
+                    System.out.println("実行中");
+                }
                 InputStream is = proc.getInputStream();
-                proc.waitFor();
-                System.out.println("実行終了");
-                BufferedReader br = new BufferedReader(new InputStreamReader(is));
+                int errorCode = proc.waitFor();
+                if (debug) {
+                    System.out.println("errorCode=" + errorCode);
+                    if (errorCode == 0) {
+                        System.out.println("正常終了 in runJBossCLI");
+                    }
+                    else {
+                        System.out.println("異常終了 in runJBossCLI");
+                    }
+                }
+                
+                BufferedReader br = 
+                        new BufferedReader(new InputStreamReader(is));
                 ArrayList<String> tmp = new ArrayList<String>();
                 String str = br.readLine();
                 //CLI出力内容の読み込み
+                if (debug) {
+                    System.out.println("CLIの読み込み開始");
+                }
                 while (str != null) {
+                    System.out.println(str);
                     tmp.add(str);
                     str = br.readLine();
+                }
+                if (debug) {
+                    System.out.println("CLIの読み込み終了");
                 }
                 DS = setAttribute(DS, tmp);
                 //System.out.println(DS.getInUseCount());
@@ -581,14 +606,16 @@ public class JBossStat {
         catch (IOException e) {
             e.printStackTrace();
             Date date = new Date();
-            errorfw.append(date.toString() + ": 正常にJboss-cliが動作しませんでした。");
+            errorfw.append(date.toString() 
+                    + ": 正常にJboss-cliが動作しませんでした。");
             errorfw.flush();
             return 1;
         }
         catch (Exception e) {
             e.printStackTrace();
             Date date = new Date();
-            errorfw.append(date.toString() + ": 正常にJboss-cliが動作しませんでした。");
+            errorfw.append(date.toString() 
+                    + ": 正常にJboss-cliが動作しませんでした。");
             errorfw.flush();
             return 1;
         }
