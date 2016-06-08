@@ -9,6 +9,7 @@ package jp.co.nri.kddi.au_pascal.infra.jboss;
 import java.util.*;
 import java.io.*;
 import java.text.*;
+import java.util.concurrent.TimeUnit;
 import javax.management.*;
 import javax.naming.*;
 
@@ -131,10 +132,10 @@ public class JBossStat {
                 System.out.println("実行中 in getCurrentThreadsBusy");
             }
             BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream()));
-            int errorCode = proc.waitFor();
+            boolean end = proc.waitFor(10, TimeUnit.SECONDS);
             if (debug) {
-                System.out.println("errorCode=" + errorCode);
-                if (errorCode == 0) {
+                System.out.println("end=" + end);
+                if (end) {
                     System.out.println("正常終了 in getCurrentThreadsBusy");
                 }
                 else {
@@ -588,10 +589,10 @@ public class JBossStat {
                     System.out.println("実行中");
                 }
                 BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream()));
-                int errorCode = proc.waitFor();
+                boolean end = proc.waitFor(10, TimeUnit.SECONDS);
                 if (debug) {
-                    System.out.println("runJBossCLI ⇒ errorCode=" + errorCode);
-                    if (errorCode == 0) {
+                    System.out.println("runJBossCLI ⇒ end=" + end);
+                    if (end) {
                         System.out.println("正常終了 in runJBossCLI");
                     }
                     else {
