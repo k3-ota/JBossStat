@@ -81,6 +81,7 @@ public class JBossStat {
                     errorfw.append(date.toString() + 
                             ": jboss-cli実行時に問題が発生しました。");
                     errorfw.flush();
+                    return 1;
                 }
                 writeLog(DSArr, fw, errorfw); 
 
@@ -117,11 +118,14 @@ public class JBossStat {
                     + "-v silent -n "
                     + "-l \"service:jmx:remoting-jmx://127.0.0.1:9999\" < " 
                     + this.commandFilePath;
+            if (debug) {
+                System.out.println("runCommand = \n" + runCommand);
+            }
             Process proc = Runtime.getRuntime().exec(runCommand);
             if (debug) {
                 System.out.println("実行中 in getCurrentThreadsBusy");
             }
-            InputStream is = proc.getInputStream();
+            BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream()));
             int errorCode = proc.waitFor();
             if (debug) {
                 System.out.println("errorCode=" + errorCode);
@@ -130,17 +134,21 @@ public class JBossStat {
                 }
                 else {
                     System.out.println("異常終了 in getCurrentThreadsBusy");
+                    return 1;
                 }
             }
             if (debug) {
                 System.out.println("実行終了 in getCurrentThreadsBusy");
             }
-            BufferedReader br = new BufferedReader(new InputStreamReader(is));
-            
+                       
             String tmp = br.readLine();
-            System.out.println(tmp);
+            if (debug) {
+                System.out.println(tmp);
+            }
             while (tmp != null) {
-                System.out.println("tmp = " + tmp);
+                if (debug) {
+                    System.out.println("tmp = " + tmp);
+                }
                 try {
                     num = (new Integer(tmp)).toString();
                     System.out.println("num = " + num);
@@ -252,7 +260,7 @@ public class JBossStat {
                 tmp = null;
                 tmp = str.split("=");
                 if (tmp[0].trim().equals("homePath")) {
-                    this.commandFilePath = tmp[1].trim();
+                    this.homePath = tmp[1].trim();
                 }
                 else {
                     System.out.println("書式が不正です＠homePath");
@@ -260,7 +268,7 @@ public class JBossStat {
                 }
                 if (debug) {
                     System.out.println("homePath: " 
-                            + this.commandFilePath);
+                            + this.homePath);
                 }
                 
             }
@@ -567,11 +575,14 @@ public class JBossStat {
                 }
                 String runCommand = this.jbossCliPath 
                         + " -c --commands=\"cd /subsystem=datasources/data-source=" + DS.getDSName() + "/statistics=pool/,ls\"";
+                if (debug) {
+                    System.out.println("runCommand = \n" + runCommand);
+                }
                 Process proc = Runtime.getRuntime().exec(runCommand);
                 if (debug) {
                     System.out.println("実行中");
                 }
-                InputStream is = proc.getInputStream();
+                BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream()));
                 int errorCode = proc.waitFor();
                 if (debug) {
                     System.out.println("errorCode=" + errorCode);
@@ -583,16 +594,19 @@ public class JBossStat {
                     }
                 }
                 
-                BufferedReader br = 
-                        new BufferedReader(new InputStreamReader(is));
                 ArrayList<String> tmp = new ArrayList<String>();
                 String str = br.readLine();
+                if (debug) {
+                    System.out.println("str = \n" + str);
+                }
                 //CLI出力内容の読み込み
                 if (debug) {
                     System.out.println("CLIの読み込み開始");
                 }
                 while (str != null) {
-                    System.out.println(str);
+                    if (debug) {
+                        System.out.println("str = \n" + str);
+                    }
                     tmp.add(str);
                     str = br.readLine();
                 }

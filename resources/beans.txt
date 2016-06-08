@@ -1,0 +1,1 @@
+get -s -b jboss.web:type=ThreadPool,name=http--0.0.0.0-8080 currentThreadsBusy
