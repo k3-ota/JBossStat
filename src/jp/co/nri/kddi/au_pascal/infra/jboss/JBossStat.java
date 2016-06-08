@@ -119,7 +119,8 @@ public class JBossStat {
         try {
             String runCommand = "java -cp " + this.homePath 
                     + "/lib/jmxterm-1.0-alpha-4-uber.jar:"
-                    + this.homePath + "/lib/jboss-cli-client.jar" 
+                    + this.homePath + "/lib/jboss-cli-client.jar:" 
+                    + this.homePath + "/lib/jboss-client.jar"
                     + " org.codehaus.classworlds.uberjar.boot.Bootstrapper "
                     + "-v silent -n "
                     + "-l \"service:jmx:remoting-jmx://127.0.0.1:9999\" < " 
