@@ -71,15 +71,18 @@ public class JBossStat {
                     System.out.println("confファイルの読み込みに失敗しました");
                 }
                 errorfw.append("confファイルの読み込みに失敗しました。\n"
-                        + "confファイルの形式を見直してください。");
+                        + "confファイルの形式を見直してください。\n");
                 errorfw.flush();
              }
              else {
                 errorCode = runJBossCli(errorfw);
-                if (errorCode == 1) {
+                if (debug) {
+                    System.out.println("runJBossCLI errorCode=" + errorCode);
+                }
+                if (errorCode != 0) {
                     Date date = new Date();
                     errorfw.append(date.toString() + 
-                            ": jboss-cli実行時に問題が発生しました。");
+                            ": jboss-cli実行時に問題が発生しました。\n");
                     errorfw.flush();
                     return 1;
                 }
@@ -96,9 +99,11 @@ public class JBossStat {
          catch (IOException e) {
              System.out.println("書き込み不良");
              e.printStackTrace();
+             return 1;
          }
          catch (Exception e) {
              e.printStackTrace();
+             return 1;
          }
          
         
@@ -384,7 +389,7 @@ public class JBossStat {
         if (errorCode == 1) {
             System.out.println("パスが取得できませんでした。");
             Date date = new Date();
-            errorfw.append(date.toString() + ": パスが取得できませんでした。");
+            errorfw.append(date.toString() + ": パスが取得できませんでした。\n");
             errorfw.flush();
             return 1;
         }
@@ -393,7 +398,7 @@ public class JBossStat {
         if (errorCode == 1) {
             Date date = new Date();
             errorfw.append(date.toString() 
-                    + ": データ取得時に問題が発生しました。");
+                    + ": データ取得時に問題が発生しました。\n");
             errorfw.flush();
         }
             
@@ -528,10 +533,10 @@ public class JBossStat {
             fw.append(sdf.format(now) + "\t");
             
             int errorCode = getCurrentThreadsBusy(fw,errorfw);
-            if (errorCode == 1) {
+            if (errorCode != 0) {
                 Date date = new Date();
                 errorfw.append(date.toString() 
-                        + ": currentThreadsBusyを取得できませんでした。");
+                        + ": currentThreadsBusyを取得できませんでした。\n");
                 errorfw.flush();
                 return 1;
             }
@@ -551,7 +556,7 @@ public class JBossStat {
             Date date = new Date();
             System.out.println("正常にログにかきこめませんでした。");
             errorfw.append(date.toString() 
-                    + ": 正常にログにかきこめませんでした。");
+                    + ": 正常にログにかきこめませんでした。\n");
             errorfw.flush();
             e.printStackTrace();
             return 1;
@@ -560,7 +565,7 @@ public class JBossStat {
             e.printStackTrace();
             Date date = new Date();
             errorfw.append(date.toString() 
-                    + ": 正常にログにかきこめませんでした。");
+                    + ": 正常にログにかきこめませんでした。\n");
             errorfw.flush();
             return 1;
         }
@@ -585,12 +590,13 @@ public class JBossStat {
                 BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream()));
                 int errorCode = proc.waitFor();
                 if (debug) {
-                    System.out.println("errorCode=" + errorCode);
+                    System.out.println("runJBossCLI ⇒ errorCode=" + errorCode);
                     if (errorCode == 0) {
                         System.out.println("正常終了 in runJBossCLI");
                     }
                     else {
                         System.out.println("異常終了 in runJBossCLI");
+                        return 1;
                     }
                 }
                 
@@ -621,7 +627,7 @@ public class JBossStat {
             e.printStackTrace();
             Date date = new Date();
             errorfw.append(date.toString() 
-                    + ": 正常にJboss-cliが動作しませんでした。");
+                    + ": 正常にJboss-cliが動作しませんでした。\n");
             errorfw.flush();
             return 1;
         }
@@ -629,7 +635,7 @@ public class JBossStat {
             e.printStackTrace();
             Date date = new Date();
             errorfw.append(date.toString() 
-                    + ": 正常にJboss-cliが動作しませんでした。");
+                    + ": 正常にJboss-cliが動作しませんでした。\n");
             errorfw.flush();
             return 1;
         }
