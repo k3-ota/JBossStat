@@ -39,7 +39,7 @@ public class JBossStat {
     String errorLogPath = null;
     String jbossCliPath = null;
     String commandFilePath = null;
-    String homePath = null;
+    String currentThreadsBusyPath = null;
     
     private boolean loginFlag;
     private boolean commandFlag;
@@ -57,7 +57,7 @@ public class JBossStat {
   
    
     int perform(String confPath) {
-         int errorCode = 0;
+        int errorCode = 0;
         
          try {
              errorCode = getConfInfo(confPath);
@@ -94,7 +94,7 @@ public class JBossStat {
                  fw.close();
              }
              if (errorfw != null) {
-                 fw.close();
+                 errorfw.close();
              }
          }
          catch (IOException e) {
@@ -117,14 +117,7 @@ public class JBossStat {
             System.out.println("⇒ getCurrentThreadsBusy");
         }
         try {
-            String runCommand = "java -cp " + this.homePath 
-                    + "/lib/jmxterm-1.0-alpha-4-uber.jar:"
-                    + this.homePath + "/lib/jboss-cli-client.jar:" 
-                    + this.homePath + "/lib/jboss-client.jar"
-                    + " org.codehaus.classworlds.uberjar.boot.Bootstrapper "
-                    + "-v silent -n "
-                    + "-l \"service:jmx:remoting-jmx://127.0.0.1:9999\" < " 
-                    + this.commandFilePath;
+            String runCommand = this.currentThreadsBusyPath;
             if (debug) {
                 System.out.println("runCommand = \n" + runCommand);
             }
@@ -153,18 +146,18 @@ public class JBossStat {
                 System.out.println(tmp);
             }
             while (tmp != null) {
-                if (debug) {
-                    System.out.println("tmp = " + tmp);
-                }
                 try {
-                    num = (new Integer(tmp)).toString();
-                    System.out.println("num = " + num);
+                    num = new Integer(tmp).toString();
+                    tmp = br.readLine();
+                }
+                catch (NumberFormatException e){
                     tmp = br.readLine();
                 }
                 catch (Exception e) {
                     tmp = br.readLine();
                 }
             }
+            
         }
         catch (IOException e) {
             e.printStackTrace();
@@ -194,7 +187,7 @@ public class JBossStat {
     }
     
     
-    int getPath(BufferedReader br) {
+    int getPath(BufferedReader br, FileWriter errorfw) {
         String str = null;
         if (debug) {
             System.out.println("func: getPath　⇒  start!");
@@ -211,6 +204,8 @@ public class JBossStat {
                 }
                 else {
                     System.out.println("書式が不正です＠logPath");
+                    Date date = new Date();
+                    errorfw.append(date.toString() + ": 書式が不正です＠logPath");
                     return 1;
                 }
                 if (debug) {
@@ -225,6 +220,8 @@ public class JBossStat {
                 }
                 else {
                     System.out.println("書式が不正です＠errorLogPath");
+                    Date date = new Date();
+                    errorfw.append(date.toString() + ": 書式が不正です＠errorLogPath");
                     return 1;
                 }
                 if (debug) {
@@ -240,6 +237,8 @@ public class JBossStat {
                 }
                 else {
                     System.out.println("書式が不正です＠commandFilePath");
+                    Date date = new Date();
+                    errorfw.append(date.toString() + ": 書式が不正です＠commandFilePath");
                     return 1;
                 }
                 if (debug) {
@@ -259,6 +258,8 @@ public class JBossStat {
                 }
                 else {
                     System.out.println("書式が不正です＠jboss-cli");
+                    Date date = new Date();
+                    errorfw.append(date.toString() + ": 書式が不正です＠jboss-cli");
                     return 1;
                 }
                 
@@ -266,21 +267,25 @@ public class JBossStat {
                 str = br.readLine();
                 tmp = null;
                 tmp = str.split("=");
-                if (tmp[0].trim().equals("homePath")) {
-                    this.homePath = tmp[1].trim();
+                if (tmp[0].trim().equals("currentThreadsBusyPath")) {
+                    this.currentThreadsBusyPath = tmp[1].trim();
                 }
                 else {
-                    System.out.println("書式が不正です＠homePath");
+                    System.out.println("書式が不正です＠currentThreadsBusyPath");
+                    Date date = new Date();
+                    errorfw.append(date.toString() + ": 書式が不正です＠currentThreadsBusyPath");
                     return 1;
                 }
                 if (debug) {
-                    System.out.println("homePath: " 
-                            + this.homePath);
+                    System.out.println("currentThreadsBusyPath: " 
+                            + this.currentThreadsBusyPath);
                 }
                 
             }
             else {
                 System.out.println("書式が不正です＠Path");
+                Date date = new Date();
+                errorfw.append(date.toString() + ": 書式が不正です＠Path");
                 return 1;
             }
         } catch (IOException e) {
@@ -294,7 +299,7 @@ public class JBossStat {
     
     
     
-    int getData(BufferedReader br) {
+    int getData(BufferedReader br, FileWriter errorfw) throws IOException {
         
         try {
             String str = br.readLine();
@@ -308,6 +313,8 @@ public class JBossStat {
             else {
                 if (debug) {
                     System.out.println("confファイルの様式がよろしくありません。");
+                    Date date = new Date();
+                    errorfw.append(date.toString() + ": confファイルの様式がよろしくありません。");
                 }
                 return 1;
             }
@@ -361,6 +368,8 @@ public class JBossStat {
         }
         catch (IOException e) {
             e.printStackTrace();
+            Date date = new Date();
+            errorfw.append(date.toString() + ": データソースの記載がありません");
             if (debug) {
                 System.out.println("IOでクラッシュ");
             }
@@ -368,8 +377,11 @@ public class JBossStat {
         }
         catch (Exception e) {
             e.printStackTrace();
+            Date date = new Date();
+            errorfw.append(date.toString() + ": データソースの記載がありません");
             if (debug) {
                 System.out.println("その他のエラーでクラッシュ");
+                
             }
             return 1;
         }
@@ -383,10 +395,12 @@ public class JBossStat {
         FileReader filereader = new FileReader(file);
         BufferedReader br = new BufferedReader(filereader);
 
-        errorCode = getPath(br);
-        
         File errorFile = new File(this.errorLogPath);
         FileWriter errorfw = new FileWriter(errorFile,true);
+        
+        errorCode = getPath(br,errorfw);
+        
+        
         
         if (errorCode == 1) {
             System.out.println("パスが取得できませんでした。");
@@ -396,7 +410,7 @@ public class JBossStat {
             return 1;
         }
         
-        errorCode = getData(br);
+        errorCode = getData(br, errorfw);
         if (errorCode == 1) {
             Date date = new Date();
             errorfw.append(date.toString() 
@@ -428,7 +442,9 @@ public class JBossStat {
             
             if (debug) {
                 System.out.println("in setAttribute");
-                System.out.println("セットする値: " + att[0] + "=" + att[1]);
+                if (att.length == 2) {
+                    System.out.println("セットする値: " + att[0] + "=" + att[1]);
+                }
             }
 
             if (att[0].equals("ActiveCount")) {
@@ -540,7 +556,7 @@ public class JBossStat {
                 errorfw.append(date.toString() 
                         + ": currentThreadsBusyを取得できませんでした。\n");
                 errorfw.flush();
-                return 1;
+                //return 1;
             }
             
             for (Stat ds : DSArr){
@@ -580,17 +596,20 @@ public class JBossStat {
                 if (debug) {
                     System.out.println(DS.getDSName());
                 }
-                String runCommand = this.jbossCliPath 
-                        + " -c --commands=\"cd /subsystem=datasources/data-source=" + DS.getDSName() + "/statistics=pool/,ls\"";
+                
+                String runCommand = this.jbossCliPath + " " + DS.getDSName();
+
                 if (debug) {
                     System.out.println("runCommand = \n" + runCommand);
                 }
+                
                 Process proc = Runtime.getRuntime().exec(runCommand);
+                
                 if (debug) {
                     System.out.println("実行中");
                 }
                 BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream()));
-                boolean end = proc.waitFor(10, TimeUnit.SECONDS);
+                boolean end = proc.waitFor(60, TimeUnit.SECONDS);
                 if (debug) {
                     System.out.println("runJBossCLI ⇒ end=" + end);
                     if (end) {
@@ -603,20 +622,20 @@ public class JBossStat {
                 }
                 
                 ArrayList<String> tmp = new ArrayList<String>();
-                String str = br.readLine();
+                String line = br.readLine();
                 if (debug) {
-                    System.out.println("str = \n" + str);
+                    System.out.println("str = \n" + line);
                 }
                 //CLI出力内容の読み込み
                 if (debug) {
                     System.out.println("CLIの読み込み開始");
                 }
-                while (str != null) {
+                while (line != null) {
                     if (debug) {
-                        System.out.println("str = \n" + str);
+                        System.out.println("line = \n" + line);
                     }
-                    tmp.add(str);
-                    str = br.readLine();
+                    tmp.add(line);
+                    line = br.readLine();
                 }
                 if (debug) {
                     System.out.println("CLIの読み込み終了");

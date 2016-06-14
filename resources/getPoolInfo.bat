@@ -1,0 +1,1 @@
+C:/Users/k-ota/Desktop/jboss-eap-6.2/bin/jboss-cli.bat -c --commands="cd /subsystem=datasources/data-source=%1/statistics=pool/,ls"
