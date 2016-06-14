@@ -290,7 +290,10 @@ public class JBossStat {
         if (format_OK == false) {
             try {
                 Date date = new Date();
-                Runtime.getRuntime().exec("echo \"" + date + ": 書式が不正です。\" >> ../resources/jbossstat_error.log");
+                File errorfile = new File("../resouces/jbossstat_error.log");
+                FileWriter errorfw = new FileWriter(errorfile,true);
+                errorfw.append(date.toString() + ": confファイルの書式が不正です。");
+                errorfw.close();
             }
             catch (IOException e) {
                 return 1;
@@ -401,12 +404,15 @@ public class JBossStat {
         BufferedReader br = new BufferedReader(filereader);
         
         errorCode = getPath(br);
+        if (errorCode != 0) {
+            return 1;
+        }
         File errorFile = new File(this.errorLogPath);
         FileWriter errorfw = new FileWriter(errorFile,true);
         
         
         
-        if (errorCode == 1) {
+        if (errorCode != 0) {
             System.out.println("パスが取得できませんでした。");
             Date date = new Date();
             errorfw.append(date.toString() + ": パスが取得できませんでした。\n");
@@ -415,7 +421,7 @@ public class JBossStat {
         }
         
         errorCode = getData(br, errorfw);
-        if (errorCode == 1) {
+        if (errorCode != 0) {
             Date date = new Date();
             errorfw.append(date.toString() 
                     + ": データ取得時に問題が発生しました。\n");
