@@ -187,7 +187,7 @@ public class JBossStat {
     }
     
     
-    int getPath(BufferedReader br) throws IOException {
+    int getPath(BufferedReader br) {
         String str = null;
         boolean format_OK = true;
         
@@ -288,11 +288,16 @@ public class JBossStat {
             System.out.println("func: getPath　⇒  end!");
         }
         if (format_OK == false) {
-            File errorfile = new File(this.errorLogPath);
-            FileWriter errorfw = new FileWriter(errorfile, true);
-            Date date = new Date();
-            errorfw.append(date.toString() + ": confファイルの書式が不正です。");
-            errorfw.close();
+            try {
+                Date date = new Date();
+                Runtime.getRuntime().exec("echo \"" + date + ": 書式が不正です。\" >> ../resources/jbossstat_error.log");
+            }
+            catch (IOException e) {
+                return 1;
+            }
+            catch (Exception e) {
+                return 1;
+            }
         }
         return 0;
     }
