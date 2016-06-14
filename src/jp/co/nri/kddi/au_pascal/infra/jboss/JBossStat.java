@@ -187,8 +187,10 @@ public class JBossStat {
     }
     
     
-    int getPath(BufferedReader br, FileWriter errorfw) {
+    int getPath(BufferedReader br) throws IOException {
         String str = null;
+        boolean format_OK = true;
+        
         if (debug) {
             System.out.println("func: getPath　⇒  start!");
         }
@@ -204,9 +206,7 @@ public class JBossStat {
                 }
                 else {
                     System.out.println("書式が不正です＠logPath");
-                    Date date = new Date();
-                    errorfw.append(date.toString() + ": 書式が不正です＠logPath");
-                    return 1;
+                    format_OK = false;
                 }
                 if (debug) {
                     System.out.println("logPath: " + this.logPath);
@@ -220,13 +220,14 @@ public class JBossStat {
                 }
                 else {
                     System.out.println("書式が不正です＠errorLogPath");
-                    Date date = new Date();
-                    errorfw.append(date.toString() + ": 書式が不正です＠errorLogPath");
-                    return 1;
+                    format_OK = false;
                 }
                 if (debug) {
                     System.out.println("errorLogPath: " + this.errorLogPath);
                 }
+                
+                File errorfile = new File(this.errorLogPath);
+                FileWriter errorfw = new FileWriter(errorfile, true);
                 
                 //currentThreadsBusy取得用コマンドファイル
                 str = br.readLine();
@@ -237,9 +238,7 @@ public class JBossStat {
                 }
                 else {
                     System.out.println("書式が不正です＠commandFilePath");
-                    Date date = new Date();
-                    errorfw.append(date.toString() + ": 書式が不正です＠commandFilePath");
-                    return 1;
+                    format_OK = false;
                 }
                 if (debug) {
                     System.out.println("commandFilePath: " 
@@ -258,9 +257,7 @@ public class JBossStat {
                 }
                 else {
                     System.out.println("書式が不正です＠jboss-cli");
-                    Date date = new Date();
-                    errorfw.append(date.toString() + ": 書式が不正です＠jboss-cli");
-                    return 1;
+                    format_OK = false;
                 }
                 
                 //アプリケーションホームパス
@@ -272,9 +269,7 @@ public class JBossStat {
                 }
                 else {
                     System.out.println("書式が不正です＠currentThreadsBusyPath");
-                    Date date = new Date();
-                    errorfw.append(date.toString() + ": 書式が不正です＠currentThreadsBusyPath");
-                    return 1;
+                    format_OK = false;
                 }
                 if (debug) {
                     System.out.println("currentThreadsBusyPath: " 
@@ -284,15 +279,20 @@ public class JBossStat {
             }
             else {
                 System.out.println("書式が不正です＠Path");
-                Date date = new Date();
-                errorfw.append(date.toString() + ": 書式が不正です＠Path");
-                return 1;
+                format_OK = false;
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
         if (debug) {
             System.out.println("func: getPath　⇒  end!");
+        }
+        if (format_OK == false) {
+            File errorfile = new File(this.errorLogPath);
+            FileWriter errorfw = new FileWriter(errorfile, true);
+            Date date = new Date();
+            errorfw.append(date.toString() + ": confファイルの書式が不正です。");
+            errorfw.close();
         }
         return 0;
     }
@@ -394,11 +394,10 @@ public class JBossStat {
         File file = new File(confPath); //絶対パスに直す
         FileReader filereader = new FileReader(file);
         BufferedReader br = new BufferedReader(filereader);
-
+        
+        errorCode = getPath(br);
         File errorFile = new File(this.errorLogPath);
         FileWriter errorfw = new FileWriter(errorFile,true);
-        
-        errorCode = getPath(br,errorfw);
         
         
         
