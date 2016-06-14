@@ -538,7 +538,7 @@ public class JBossStat {
         if (str.trim().equals("TotalCreationTime")) {
             return DS.getTotalCreationTime();
         }
-        return -1;
+        return 1;
     }
     
     int writeLog(List<Stat> DSArr, FileWriter fw, FileWriter errorfw) 
@@ -556,7 +556,7 @@ public class JBossStat {
                 errorfw.append(date.toString() 
                         + ": currentThreadsBusyを取得できませんでした。\n");
                 errorfw.flush();
-                //return 1;
+                return 1;
             }
             
             for (Stat ds : DSArr){
