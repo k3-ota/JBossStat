@@ -70,9 +70,12 @@ public class JBossStat {
              if (errorCode == 1) {
                 if (debug) {
                     System.out.println("confファイルの読み込みに失敗しました");
+                   
                 }
-                errorfw.append("confファイルの読み込みに失敗しました。\n"
-                        + "confファイルの形式を見直してください。\n");
+                Date date = new Date();
+                errorfw.append(date.toString() 
+                        + ": confファイルの読み込みに失敗しました。"
+                        +"confファイルの形式を見直してください。\n");
                 errorfw.flush();
              }
              else {
@@ -307,7 +310,7 @@ public class JBossStat {
     
     
     
-    int getData(BufferedReader br, FileWriter errorfw) throws IOException {
+    int getData(BufferedReader br) throws IOException {
         
         try {
             String str = br.readLine();
@@ -322,7 +325,7 @@ public class JBossStat {
                 if (debug) {
                     System.out.println("confファイルの様式がよろしくありません。");
                     Date date = new Date();
-                    errorfw.append(date.toString() + ": confファイルの様式がよろしくありません。");
+                    System.out.println(date.toString() + ": confファイルの様式がよろしくありません。");
                 }
                 return 1;
             }
@@ -377,7 +380,7 @@ public class JBossStat {
         catch (IOException e) {
             e.printStackTrace();
             Date date = new Date();
-            errorfw.append(date.toString() + ": データソースの記載がありません");
+            System.out.println(date.toString() + ": データソースの記載がありません");
             if (debug) {
                 System.out.println("IOでクラッシュ");
             }
@@ -386,7 +389,7 @@ public class JBossStat {
         catch (Exception e) {
             e.printStackTrace();
             Date date = new Date();
-            errorfw.append(date.toString() + ": データソースの記載がありません");
+            System.out.println(date.toString() + ": データソースの記載がありません");
             if (debug) {
                 System.out.println("その他のエラーでクラッシュ");
                 
@@ -396,7 +399,7 @@ public class JBossStat {
         return 0;
     }
     
-    int getConfInfo(String confPath) throws IOException, NamingException {
+    int getConfInfo(String confPath) throws FileNotFoundException, IOException {
         int errorCode = 0;
         
         File file = new File(confPath); //絶対パスに直す
@@ -407,25 +410,21 @@ public class JBossStat {
         if (errorCode != 0) {
             return 1;
         }
-        File errorFile = new File(this.errorLogPath);
-        FileWriter errorfw = new FileWriter(errorFile,true);
+        
         
         
         
         if (errorCode != 0) {
             System.out.println("パスが取得できませんでした。");
             Date date = new Date();
-            errorfw.append(date.toString() + ": パスが取得できませんでした。\n");
-            errorfw.flush();
             return 1;
         }
         
-        errorCode = getData(br, errorfw);
+        errorCode = getData(br);
         if (errorCode != 0) {
             Date date = new Date();
-            errorfw.append(date.toString() 
+            System.out.println(date.toString() 
                     + ": データ取得時に問題が発生しました。\n");
-            errorfw.flush();
         }
             
         //入力のクロージング
@@ -434,9 +433,6 @@ public class JBossStat {
         }
         if (filereader != null) {
             filereader.close();
-        }
-        if (errorfw != null) {
-            errorfw.close();
         }
         
         if (debug) {
