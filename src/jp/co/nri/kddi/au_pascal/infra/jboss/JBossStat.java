@@ -67,7 +67,7 @@ public class JBossStat {
              File errorFile = new File(this.errorLogPath);
              FileWriter errorfw = new FileWriter(errorFile,true);
              
-             if (errorCode == 1) {
+             if (errorCode != 0) {
                 if (debug) {
                     System.out.println("confファイルの読み込みに失敗しました");
                    
@@ -291,19 +291,7 @@ public class JBossStat {
             System.out.println("func: getPath　⇒  end!");
         }
         if (format_OK == false) {
-            try {
-                Date date = new Date();
-                File errorfile = new File("../resouces/jbossstat_error.log");
-                FileWriter errorfw = new FileWriter(errorfile,true);
-                errorfw.append(date.toString() + ": confファイルの書式が不正です。");
-                errorfw.close();
-            }
-            catch (IOException e) {
-                return 1;
-            }
-            catch (Exception e) {
-                return 1;
-            }
+            return 1;
         }
         return 0;
     }
