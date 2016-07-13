@@ -12,6 +12,7 @@ import java.text.*;
 import java.util.concurrent.TimeUnit;
 import javax.management.*;
 import javax.naming.*;
+import java.lang.NullPointerException;
 
 
 
@@ -56,7 +57,7 @@ public class JBossStat {
     
   
    
-    int perform(String confPath) {
+    int perform(String confPath) throws IOException {
         int errorCode = 0;
         
          try {
@@ -101,12 +102,33 @@ public class JBossStat {
              }
          }
          catch (IOException e) {
-             System.out.println("書き込み不良");
-             e.printStackTrace();
+             if (debug) {
+                 e.printStackTrace();
+             }
+             File file = new File(this.errorLogPath);
+             FileWriter errorfw = new FileWriter(file, true);
+             Date date = new Date();
+             errorfw.append(date.toString() + ": confファイルの形式が正しくありません。");
+             errorfw.flush();
+             return 1;
+         }
+         catch (NullPointerException e) {
+             if (debug) {
+                 e.printStackTrace();
+             }
+             File file = new File(this.errorLogPath);
+             FileWriter errorfw = new FileWriter(file, true);
+             Date date = new Date();
+             errorfw.append(date.toString() + ": confファイルの形式が正しくありません。");
+             errorfw.flush();
              return 1;
          }
          catch (Exception e) {
-             e.printStackTrace();
+             File file = new File(this.errorLogPath);
+             FileWriter errorfw = new FileWriter(file, true);
+             Date date = new Date();
+             errorfw.append(date.toString() + ": confファイルの形式が正しくありません。");
+             errorfw.flush();
              return 1;
          }
          
@@ -190,7 +212,7 @@ public class JBossStat {
     }
     
     
-    int getPath(BufferedReader br) {
+    int getPath(BufferedReader br) throws IOException {
         String str = null;
         boolean format_OK = true;
         
@@ -218,8 +240,16 @@ public class JBossStat {
                 str = br.readLine();
                 tmp = null;
                 tmp = str.split("=");
+                while (!tmp[0].trim().equals("errorLogPath")) {
+                    format_OK = false;
+                    tmp = null;
+                    br.readLine();
+                }
                 if (tmp[0].trim().equals("errorLogPath")) {
                     this.errorLogPath = tmp[1].trim();
+                    if (debug) {
+                        System.out.println("errorPath = " + this.errorLogPath);
+                    }
                 }
                 else {
                     System.out.println("書式が不正です＠errorLogPath");
@@ -282,10 +312,74 @@ public class JBossStat {
             }
             else {
                 System.out.println("書式が不正です＠Path");
+                str = br.readLine();
+                String[] tmp;
+                tmp = null;
+                tmp = str.split("=");
+                while (tmp[0].trim().equals("errorLogPath")) {
+                    format_OK = false;
+                    tmp = null;
+                    if (debug) {
+                        System.out.println("エラーパス探し");
+                    }
+                    br.readLine();
+                }
+                if (tmp[0].trim().equals("errorLogPath")) {
+                    this.errorLogPath = tmp[1].trim();
+                    if (debug) {
+                        System.out.println("errorPath = " + this.errorLogPath);
+                    }
+                }
                 format_OK = false;
             }
         } catch (IOException e) {
             e.printStackTrace();
+        }
+        catch (NullPointerException e) {
+            if (debug) {
+                System.out.println("(　´∀｀)＜ぬるぽ１");
+            }
+            str = br.readLine();
+            String[] tmp;
+            tmp = null;
+            tmp = str.split("=");
+            while (tmp[0].trim().equals("errorLogPath")) {
+                format_OK = false;
+                tmp = null;
+                if (debug) {
+                    System.out.println("エラーパス探し");
+                }
+                br.readLine();
+            }
+            if (tmp[0].trim().equals("errorLogPath")) {
+                this.errorLogPath = tmp[1].trim();
+                if (debug) {
+                    System.out.println("errorPath = " + this.errorLogPath);
+                }
+            }
+        }
+        catch (Exception e) {
+            if (debug) {
+                System.out.println("(　´∀｀)＜ぬるぽ２");
+            }
+            str = br.readLine();
+            String[] tmp;
+            tmp = null;
+            tmp = str.split("=");
+            while (tmp[0].trim().equals("errorLogPath")) {
+                format_OK = false;
+                tmp = null;
+                if (debug) {
+                    System.out.println("エラーパス探し");
+                }
+                br.readLine();
+            }
+            if (tmp[0].trim().equals("errorLogPath")) {
+                this.errorLogPath = tmp[1].trim();
+                if (debug) {
+                    System.out.println("errorPath = " + this.errorLogPath);
+                }
+            }
         }
         if (debug) {
             System.out.println("func: getPath　⇒  end!");
@@ -394,9 +488,56 @@ public class JBossStat {
         FileReader filereader = new FileReader(file);
         BufferedReader br = new BufferedReader(filereader);
         
-        errorCode = getPath(br);
-        if (errorCode != 0) {
+        try {
+            errorCode = getPath(br);
+            if (errorCode != 0) {
+                return 1;
+            }
+        }
+        catch (NullPointerException e) {
+            if (debug) {
+                System.out.println("(　´∀｀)＜ぬるぽ３");
+            }
+            String str = br.readLine();
+            String[] tmp;
+            tmp = null;
+            tmp = str.split("=");
+            while (tmp[0].trim().equals("errorLogPath")) {
+                tmp = null;
+                if (debug) {
+                    System.out.println("エラーパス探し");
+                }
+                br.readLine();
+            }
+            if (tmp[0].trim().equals("errorLogPath")) {
+                this.errorLogPath = tmp[1].trim();
+                if (debug) {
+                    System.out.println("errorPath = " + this.errorLogPath);
+                }
+            }
             return 1;
+        }
+        catch (Exception e){
+            if (debug) {
+                System.out.println("(　´∀｀)＜ぬるぽ４");
+            }
+            String str = br.readLine();
+            String[] tmp;
+            tmp = null;
+            tmp = str.split("=");
+            while (tmp[0].trim().equals("errorLogPath")) {
+                tmp = null;
+                if (debug) {
+                    System.out.println("エラーパス探し");
+                }
+                br.readLine();
+            }
+            if (tmp[0].trim().equals("errorLogPath")) {
+                this.errorLogPath = tmp[1].trim();
+                if (debug) {
+                    System.out.println("errorPath = " + this.errorLogPath);
+                }
+            }
         }
         
         

@@ -20,14 +20,19 @@ public class Run {
         System.out.println("test start!");
         JBossStat obj = new JBossStat();
         
-        int errorCode = obj.perform(args[0]);
-        System.out.println("test end!!");
-        if (errorCode == 0) {
-            System.out.println("正常にログがとれました。");
+        if (args.length == 1) {
+            int errorCode = obj.perform(args[0]);
+            System.out.println("test end!!");
+            if (errorCode == 0) {
+                System.out.println("正常にログがとれました。");
+            }
+            else {
+                System.out.println("異常終了が発生しました。");
+            }
         }
         else {
-            System.out.println("異常終了が発生しました。");
+            System.out.println("jboss.confへのパスが、実行時引数に指定されておりません。");
         }
+        
     }
-    
 }
