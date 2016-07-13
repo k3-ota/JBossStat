@@ -61,10 +61,9 @@ public class JBossStat {
         int errorCode = 0;
         
          try {
+             
              errorCode = getConfInfo(confPath);
              
-             File file = new File(this.logPath); //ログ出力先
-             FileWriter fw = new FileWriter(file,true);
              File errorFile = new File(this.errorLogPath);
              FileWriter errorfw = new FileWriter(errorFile,true);
              
@@ -78,25 +77,32 @@ public class JBossStat {
                         + ": confファイルの読み込みに失敗しました。"
                         +"confファイルの形式を見直してください。\n");
                 errorfw.flush();
+                return errorCode;
              }
-             else {
-                errorCode = runJBossCli(errorfw);
-                if (debug) {
-                    System.out.println("runJBossCLI errorCode=" + errorCode);
-                }
-                if (errorCode != 0) {
-                    Date date = new Date();
-                    errorfw.append(date.toString() + 
-                            ": jboss-cli実行時に問題が発生しました。\n");
-                    errorfw.flush();
-                    return 1;
-                }
-                writeLog(DSArr, fw, errorfw); 
+             
+             File file = new File(this.logPath); //ログ出力先
+             FileWriter fw = new FileWriter(file,true);
+             
+             
+             
+           
+            errorCode = runJBossCli(errorfw);
+            if (debug) {
+                System.out.println("runJBossCLI errorCode=" + errorCode);
+            }
+            if (errorCode != 0) {
+                Date date = new Date();
+                errorfw.append(date.toString() + 
+                        ": jboss-cli実行時に問題が発生しました。\n");
+                errorfw.flush();
+                return 1;
+            }
+            writeLog(DSArr, fw, errorfw); 
 
-             }
-             if (fw != null) {
+             
+            if (fw != null) {
                  fw.close();
-             }
+            }
              if (errorfw != null) {
                  errorfw.close();
              }
@@ -212,9 +218,10 @@ public class JBossStat {
     }
     
     
-    int getPath(BufferedReader br) throws IOException {
+    int getPath(BufferedReader br, String confPath) throws IOException {
         String str = null;
         boolean format_OK = true;
+        String logdir = confPath.trim().split("/jboss.conf")[0];
         
         if (debug) {
             System.out.println("func: getPath　⇒  start!");
@@ -316,7 +323,7 @@ public class JBossStat {
                 String[] tmp;
                 tmp = null;
                 tmp = str.split("=");
-                while (tmp[0].trim().equals("errorLogPath")) {
+                while (!tmp[0].trim().equals("errorLogPath")) {
                     format_OK = false;
                     tmp = null;
                     if (debug) {
@@ -343,7 +350,7 @@ public class JBossStat {
             String[] tmp;
             tmp = null;
             tmp = str.split("=");
-            while (tmp[0].trim().equals("errorLogPath")) {
+            while (!tmp[0].trim().equals("errorLogPath")) {
                 format_OK = false;
                 tmp = null;
                 if (debug) {
@@ -366,7 +373,7 @@ public class JBossStat {
             String[] tmp;
             tmp = null;
             tmp = str.split("=");
-            while (tmp[0].trim().equals("errorLogPath")) {
+            while (!tmp[0].trim().equals("errorLogPath")) {
                 format_OK = false;
                 tmp = null;
                 if (debug) {
@@ -489,7 +496,7 @@ public class JBossStat {
         BufferedReader br = new BufferedReader(filereader);
         
         try {
-            errorCode = getPath(br);
+            errorCode = getPath(br, confPath);
             if (errorCode != 0) {
                 return 1;
             }
@@ -502,7 +509,7 @@ public class JBossStat {
             String[] tmp;
             tmp = null;
             tmp = str.split("=");
-            while (tmp[0].trim().equals("errorLogPath")) {
+            while (!tmp[0].trim().equals("errorLogPath")) {
                 tmp = null;
                 if (debug) {
                     System.out.println("エラーパス探し");
@@ -525,7 +532,7 @@ public class JBossStat {
             String[] tmp;
             tmp = null;
             tmp = str.split("=");
-            while (tmp[0].trim().equals("errorLogPath")) {
+            while (!tmp[0].trim().equals("errorLogPath")) {
                 tmp = null;
                 if (debug) {
                     System.out.println("エラーパス探し");
